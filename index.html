@@ -1,0 +1,1459 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aseprite</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+            padding: 15px 20px;
+            color: white;
+            text-align: center;
+        }
+
+        .main-container {
+            display: flex;
+            flex: 1;
+            padding: 20px;
+            gap: 20px;
+        }
+
+        .left-panel {
+            width: 280px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow-y: auto;
+            max-height: calc(100vh - 120px);
+        }
+
+        .canvas-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+
+        .right-panel {
+            width: 320px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            overflow-y: auto;
+            max-height: calc(100vh - 120px);
+        }
+
+        .section {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+
+        .section h3 {
+            color: #333;
+            margin-bottom: 15px;
+            font-size: 16px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tool-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .tool-btn {
+            padding: 12px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .tool-btn:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+            transform: translateY(-2px);
+        }
+
+        .tool-btn.active {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .tool-icon {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .canvas-wrapper {
+            position: relative;
+            border: 3px solid #333;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+            background: #fff;
+        }
+
+        #pixelCanvas {
+            display: block;
+            cursor: crosshair;
+            image-rendering: -moz-crisp-edges;
+            image-rendering: -webkit-crisp-edges;
+            image-rendering: pixelated;
+            image-rendering: crisp-edges;
+        }
+
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 4px;
+            margin-bottom: 10px;
+        }
+
+        .color-swatch {
+            width: 28px;
+            height: 28px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .color-swatch:hover {
+            transform: scale(1.1);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        .color-swatch.active {
+            border-color: #333;
+            transform: scale(1.15);
+            box-shadow: 0 0 0 2px #667eea;
+        }
+
+        .input-group {
+            margin-bottom: 15px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+            color: #333;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid #ddd;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: border-color 0.2s ease;
+        }
+
+        .input-group input:focus, .input-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .btn {
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-secondary {
+            background: #f8f9fa;
+            color: #333;
+            border: 2px solid #ddd;
+        }
+
+        .btn-secondary:hover {
+            background: #e9ecef;
+            border-color: #adb5bd;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a52);
+            color: white;
+        }
+
+        .btn-danger:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(255, 107, 107, 0.3);
+        }
+
+        .animation-controls {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .frame-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            background: #f8f9fa;
+        }
+
+        .frame-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            background: white;
+            border: 1px solid #ddd;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .frame-item:hover {
+            background: #f0f0f0;
+        }
+
+        .frame-item.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .frame-preview {
+            width: 40px;
+            height: 40px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            image-rendering: pixelated;
+        }
+
+        .animation-preview {
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .canvas-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(102, 126, 234, 0.1);
+            border-radius: 8px;
+            border: 1px solid rgba(102, 126, 234, 0.2);
+        }
+
+        .zoom-controls {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .zoom-btn {
+            width: 32px;
+            height: 32px;
+            border: 2px solid #ddd;
+            background: white;
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            transition: all 0.2s ease;
+        }
+
+        .zoom-btn:hover {
+            border-color: #667eea;
+            background: #f8f9ff;
+        }
+
+        .brush-size-slider {
+            margin-bottom: 15px;
+        }
+
+        .slider {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #ddd;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.2);
+        }
+
+        .grid-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: #ddd;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s ease;
+        }
+
+        .toggle-switch.active {
+            background: #667eea;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: white;
+            border-radius: 50%;
+            transition: transform 0.2s ease;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .toggle-switch.active .toggle-slider {
+            transform: translateX(20px);
+        }
+
+        @media (max-width: 1200px) {
+            .main-container {
+                flex-direction: column;
+            }
+
+            .left-panel, .right-panel {
+                width: 100%;
+                max-height: none;
+            }
+
+            .tool-grid {
+                grid-template-columns: repeat(6, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🎨 픽셀아트 에디터 - 프로페셔널</h1>
+        <p>애니메이션 지원 · 고급 도구 · JPG 내보내기</p>
+    </div>
+
+    <div class="main-container">
+        <!-- 왼쪽 패널: 도구 및 설정 -->
+        <div class="left-panel">
+            <!-- 도구 선택 -->
+            <div class="section">
+                <h3>🛠️ 도구</h3>
+                <div class="tool-grid">
+                    <div class="tool-btn active" data-tool="pencil">
+                        <div class="tool-icon">✏️</div>
+                        <span>펜슬</span>
+                    </div>
+                    <div class="tool-btn" data-tool="brush">
+                        <div class="tool-icon">🖌️</div>
+                        <span>브러시</span>
+                    </div>
+                    <div class="tool-btn" data-tool="eraser">
+                        <div class="tool-icon">🧹</div>
+                        <span>지우개</span>
+                    </div>
+                    <div class="tool-btn" data-tool="bucket">
+                        <div class="tool-icon">🪣</div>
+                        <span>채우기</span>
+                    </div>
+                    <div class="tool-btn" data-tool="eyedropper">
+                        <div class="tool-icon">💧</div>
+                        <span>스포이드</span>
+                    </div>
+                    <div class="tool-btn" data-tool="line">
+                        <div class="tool-icon">📏</div>
+                        <span>직선</span>
+                    </div>
+                    <div class="tool-btn" data-tool="rectangle">
+                        <div class="tool-icon">⬜</div>
+                        <span>사각형</span>
+                    </div>
+                    <div class="tool-btn" data-tool="circle">
+                        <div class="tool-icon">⭕</div>
+                        <span>원형</span>
+                    </div>
+                    <div class="tool-btn" data-tool="select">
+                        <div class="tool-icon">🔲</div>
+                        <span>선택</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 브러시 설정 -->
+            <div class="section">
+                <h3>🖌️ 브러시 설정</h3>
+                <div class="brush-size-slider">
+                    <label>브러시 크기: <span id="brushSizeValue">1</span>px</label>
+                    <input type="range" id="brushSize" class="slider" min="1" max="20" value="1">
+                </div>
+            </div>
+
+            <!-- 캔버스 설정 -->
+            <div class="section">
+                <h3>📐 캔버스 설정</h3>
+                <div class="input-group">
+                    <label>가로 크기 (픽셀)</label>
+                    <input type="number" id="canvasWidth" value="32" min="8" max="512">
+                </div>
+                <div class="input-group">
+                    <label>세로 크기 (픽셀)</label>
+                    <input type="number" id="canvasHeight" value="32" min="8" max="512">
+                </div>
+                <button class="btn btn-secondary" onclick="resizeCanvas()">캔버스 크기 변경</button>
+            </div>
+
+            <!-- 격자 표시 -->
+            <div class="section">
+                <h3>🔳 표시 옵션</h3>
+                <div class="grid-toggle">
+                    <span>격자 표시</span>
+                    <div class="toggle-switch active" id="gridToggle" onclick="toggleGrid()">
+                        <div class="toggle-slider"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 파일 작업 -->
+            <div class="section">
+                <h3>💾 파일</h3>
+                <button class="btn btn-primary" onclick="downloadJPG()">JPG로 다운로드</button>
+                <button class="btn btn-secondary" onclick="downloadPNG()">PNG로 다운로드</button>
+                <button class="btn btn-secondary" onclick="downloadGIF()" id="downloadGifBtn">GIF로 다운로드</button>
+                <input type="file" id="fileInput" accept="image/*" style="display: none;" onchange="loadImage()">
+                <button class="btn btn-secondary" onclick="document.getElementById('fileInput').click()">이미지 불러오기</button>
+                <button class="btn btn-danger" onclick="clearCanvas()">전체 지우기</button>
+            </div>
+        </div>
+
+        <!-- 중앙: 캔버스 -->
+        <div class="canvas-container">
+            <div class="canvas-info">
+                <span>크기: <span id="canvasSizeInfo">32 × 32</span></span>
+                <span>줌: <span id="zoomLevel">400%</span></span>
+            </div>
+            
+            <div class="zoom-controls">
+                <button class="zoom-btn" onclick="zoomOut()">-</button>
+                <span>줌</span>
+                <button class="zoom-btn" onclick="zoomIn()">+</button>
+                <button class="btn btn-secondary" onclick="resetZoom()">리셋</button>
+            </div>
+
+            <div class="canvas-wrapper">
+                <canvas id="pixelCanvas" width="32" height="32"></canvas>
+            </div>
+        </div>
+
+        <!-- 오른쪽 패널: 색상 및 애니메이션 -->
+        <div class="right-panel">
+            <!-- 색상 선택 -->
+            <div class="section">
+                <h3>🎨 색상</h3>
+                <div class="input-group">
+                    <label>현재 색상</label>
+                    <input type="color" id="colorPicker" value="#000000">
+                </div>
+                <div class="color-palette" id="colorPalette">
+                    <!-- 색상 팔레트가 여기에 생성됩니다 -->
+                </div>
+            </div>
+
+            <!-- 애니메이션 -->
+            <div class="section">
+                <h3>🎬 애니메이션</h3>
+                <div class="animation-controls">
+                    <button class="btn btn-primary" onclick="addFrame()">프레임 추가</button>
+                    <button class="btn btn-secondary" onclick="duplicateFrame()">복제</button>
+                    <button class="btn btn-danger" onclick="deleteFrame()">삭제</button>
+                </div>
+                
+                <div class="input-group">
+                    <label>프레임 속도 (ms)</label>
+                    <input type="number" id="frameDelay" value="500" min="50" max="5000">
+                </div>
+
+                <div class="animation-controls">
+                    <button class="btn btn-primary" id="playBtn" onclick="toggleAnimation()">▶️ 재생</button>
+                    <button class="btn btn-secondary" onclick="stopAnimation()">⏹️ 정지</button>
+                </div>
+
+                <div class="animation-preview">
+                    <canvas id="animationPreview" width="80" height="80" style="border: 2px solid #ddd; border-radius: 8px; image-rendering: pixelated;"></canvas>
+                </div>
+
+                <div class="frame-list" id="frameList">
+                    <!-- 프레임 목록이 여기에 생성됩니다 -->
+                </div>
+            </div>
+
+            <!-- 레이어 -->
+            <div class="section">
+                <h3>📚 히스토리</h3>
+                <button class="btn btn-secondary" onclick="undo()" id="undoBtn">↶ 실행취소</button>
+                <button class="btn btn-secondary" onclick="redo()" id="redoBtn">↷ 다시실행</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 전역 변수들
+        let canvas, ctx, animationPreview, animationCtx;
+        let currentTool = 'pencil';
+        let currentColor = '#000000';
+        let brushSize = 1;
+        let isDrawing = false;
+        let showGrid = true;
+        let zoom = 400;
+        let lastX, lastY;
+        let startX, startY;
+        let history = [];
+        let historyStep = -1;
+        let frames = [];
+        let currentFrame = 0;
+        let animationPlaying = false;
+        let animationInterval;
+
+        // 초기화
+        window.onload = function() {
+            canvas = document.getElementById('pixelCanvas');
+            ctx = canvas.getContext('2d');
+            animationPreview = document.getElementById('animationPreview');
+            animationCtx = animationPreview.getContext('2d');
+            
+            // 픽셀 완벽 렌더링 설정
+            ctx.imageSmoothingEnabled = false;
+            animationCtx.imageSmoothingEnabled = false;
+            
+            initializeColorPalette();
+            setupEventListeners();
+            updateCanvasSize();
+            saveState();
+            
+            // 첫 번째 프레임 생성
+            addFrame();
+        };
+
+        // 색상 팔레트 초기화
+        function initializeColorPalette() {
+            const palette = document.getElementById('colorPalette');
+            const colors = [
+                '#000000', '#FFFFFF', '#FF0000', '#00FF00', '#0000FF', '#FFFF00', '#FF00FF', '#00FFFF',
+                '#800000', '#808080', '#800080', '#008000', '#000080', '#808000', '#C0C0C0', '#FF8000',
+                '#8B4513', '#FFC0CB', '#FFE4B5', '#98FB98', '#87CEEB', '#DDA0DD', '#F0E68C', '#FA8072',
+                '#FF6347', '#40E0D0', '#EE82EE', '#90EE90', '#F0F8FF', '#FFEFD5', '#D2691E', '#CD853F'
+            ];
+
+            colors.forEach(color => {
+                const swatch = document.createElement('div');
+                swatch.className = 'color-swatch';
+                swatch.style.backgroundColor = color;
+                swatch.onclick = () => selectColor(color);
+                palette.appendChild(swatch);
+            });
+
+            // 첫 번째 색상 선택
+            selectColor(colors[0]);
+        }
+
+        // 이벤트 리스너 설정
+        function setupEventListeners() {
+            // 도구 선택
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.addEventListener('click', () => selectTool(btn.dataset.tool));
+            });
+
+            // 색상 선택기
+            document.getElementById('colorPicker').addEventListener('change', (e) => {
+                selectColor(e.target.value);
+            });
+
+            // 브러시 크기
+            document.getElementById('brushSize').addEventListener('input', (e) => {
+                brushSize = parseInt(e.target.value);
+                document.getElementById('brushSizeValue').textContent = brushSize;
+            });
+
+            // 캔버스 마우스 이벤트
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseleave', stopDrawing);
+
+            // 키보드 단축키
+            document.addEventListener('keydown', handleKeyPress);
+        }
+
+        // 도구 선택
+        function selectTool(tool) {
+            currentTool = tool;
+            document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelector(`[data-tool="${tool}"]`).classList.add('active');
+            
+            // 커서 변경
+            switch(tool) {
+                case 'eyedropper': canvas.style.cursor = 'crosshair'; break;
+                case 'bucket': canvas.style.cursor = 'crosshair'; break;
+                case 'eraser': canvas.style.cursor = 'crosshair'; break;
+                default: canvas.style.cursor = 'crosshair';
+            }
+        }
+
+        // 색상 선택
+        function selectColor(color) {
+            currentColor = color;
+            document.getElementById('colorPicker').value = color;
+            document.querySelectorAll('.color-swatch').forEach(swatch => swatch.classList.remove('active'));
+            document.querySelectorAll('.color-swatch').forEach(swatch => {
+                if (swatch.style.backgroundColor === color || rgbToHex(swatch.style.backgroundColor) === color) {
+                    swatch.classList.add('active');
+                }
+            });
+        }
+
+        // RGB를 HEX로 변환
+        function rgbToHex(rgb) {
+            if (rgb.startsWith('#')) return rgb;
+            const result = rgb.match(/\d+/g);
+            return '#' + ((1 << 24) + (parseInt(result[0]) << 16) + (parseInt(result[1]) << 8) + parseInt(result[2])).toString(16).slice(1);
+        }
+
+        // 그리기 시작
+        function startDrawing(e) {
+            isDrawing = true;
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            lastX = Math.floor((e.clientX - rect.left) * scaleX);
+            lastY = Math.floor((e.clientY - rect.top) * scaleY);
+            startX = lastX;
+            startY = lastY;
+
+            handleTool(lastX, lastY, e);
+        }
+
+        // 그리기
+        function draw(e) {
+            if (!isDrawing && currentTool !== 'eyedropper') return;
+            
+            const rect = canvas.getBoundingClientRect();
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            
+            const currentX = Math.floor((e.clientX - rect.left) * scaleX);
+            const currentY = Math.floor((e.clientY - rect.top) * scaleY);
+
+            if (currentTool === 'eyedropper') {
+                showColorPreview(currentX, currentY);
+                return;
+            }
+
+            handleTool(currentX, currentY, e);
+            
+            lastX = currentX;
+            lastY = currentY;
+        }
+
+        // 그리기 종료
+        function stopDrawing(e) {
+            if (!isDrawing) return;
+            isDrawing = false;
+            
+            if (['line', 'rectangle', 'circle'].includes(currentTool)) {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                
+                const endX = Math.floor((e.clientX - rect.left) * scaleX);
+                const endY = Math.floor((e.clientY - rect.top) * scaleY);
+                
+                drawShape(startX, startY, endX, endY);
+            }
+            
+            saveState();
+            updateCurrentFrame();
+        }
+
+        // 도구별 처리
+        function handleTool(x, y, e) {
+            switch(currentTool) {
+                case 'pencil':
+                    drawPixel(x, y);
+                    break;
+                case 'brush':
+                    drawBrush(x, y);
+                    break;
+                case 'eraser':
+                    erasePixel(x, y);
+                    break;
+                case 'bucket':
+                    if (isDrawing) floodFill(x, y);
+                    break;
+                case 'eyedropper':
+                    pickColor(x, y);
+                    break;
+                case 'line':
+                case 'rectangle':
+                case 'circle':
+                    // 미리보기는 여기서 처리하지 않음 (실제 그리기는 stopDrawing에서)
+                    break;
+                case 'select':
+                    // 선택 도구 로직
+                    break;
+            }
+            
+            if (showGrid) drawGrid();
+            updateAnimationPreview();
+        }
+
+        // 픽셀 그리기
+        function drawPixel(x, y) {
+            if (x >= 0 && x < canvas.width && y >= 0 && y < canvas.height) {
+                ctx.fillStyle = currentColor;
+                ctx.fillRect(x, y, 1, 1);
+            }
+        }
+
+        // 브러시 그리기
+        function drawBrush(x, y) {
+            const halfSize = Math.floor(brushSize / 2);
+            for (let i = -halfSize; i <= halfSize; i++) {
+                for (let j = -halfSize; j <= halfSize; j++) {
+                    const distance = Math.sqrt(i * i + j * j);
+                    if (distance <= halfSize) {
+                        drawPixel(x + i, y + j);
+                    }
+                }
+            }
+        }
+
+        // 지우개
+        function erasePixel(x, y) {
+            const halfSize = Math.floor(brushSize / 2);
+            for (let i = -halfSize; i <= halfSize; i++) {
+                for (let j = -halfSize; j <= halfSize; j++) {
+                    const distance = Math.sqrt(i * i + j * j);
+                    if (distance <= halfSize && x + i >= 0 && x + i < canvas.width && y + j >= 0 && y + j < canvas.height) {
+                        ctx.clearRect(x + i, y + j, 1, 1);
+                    }
+                }
+            }
+        }
+
+        // 색상 추출
+        function pickColor(x, y) {
+            if (x >= 0 && x < canvas.width && y >= 0 && y < canvas.height) {
+                const imageData = ctx.getImageData(x, y, 1, 1);
+                const data = imageData.data;
+                if (data[3] > 0) { // 투명하지 않은 경우만
+                    const color = '#' + ((1 << 24) + (data[0] << 16) + (data[1] << 8) + data[2]).toString(16).slice(1);
+                    selectColor(color);
+                }
+            }
+        }
+
+        // 색상 미리보기 (스포이드 도구용)
+        function showColorPreview(x, y) {
+            if (x >= 0 && x < canvas.width && y >= 0 && y < canvas.height) {
+                const imageData = ctx.getImageData(x, y, 1, 1);
+                const data = imageData.data;
+                if (data[3] > 0) {
+                    const color = '#' + ((1 << 24) + (data[0] << 16) + (data[1] << 8) + data[2]).toString(16).slice(1);
+                    document.getElementById('colorPicker').value = color;
+                }
+            }
+        }
+
+        // 채우기 (플러드 필)
+        function floodFill(startX, startY) {
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            const data = imageData.data;
+            const targetColor = getPixelColor(imageData, startX, startY);
+            const fillColor = hexToRgb(currentColor);
+            
+            if (colorsEqual(targetColor, fillColor)) return;
+            
+            const stack = [[startX, startY]];
+            const visited = new Set();
+            
+            while (stack.length > 0) {
+                const [x, y] = stack.pop();
+                const key = x + ',' + y;
+                
+                if (visited.has(key) || x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) {
+                    continue;
+                }
+                
+                const currentColor = getPixelColor(imageData, x, y);
+                if (!colorsEqual(currentColor, targetColor)) {
+                    continue;
+                }
+                
+                visited.add(key);
+                setPixelColor(imageData, x, y, fillColor);
+                
+                stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+            }
+            
+            ctx.putImageData(imageData, 0, 0);
+        }
+
+        // 픽셀 색상 가져오기
+        function getPixelColor(imageData, x, y) {
+            const index = (y * imageData.width + x) * 4;
+            return {
+                r: imageData.data[index],
+                g: imageData.data[index + 1],
+                b: imageData.data[index + 2],
+                a: imageData.data[index + 3]
+            };
+        }
+
+        // 픽셀 색상 설정
+        function setPixelColor(imageData, x, y, color) {
+            const index = (y * imageData.width + x) * 4;
+            imageData.data[index] = color.r;
+            imageData.data[index + 1] = color.g;
+            imageData.data[index + 2] = color.b;
+            imageData.data[index + 3] = 255;
+        }
+
+        // 색상 비교
+        function colorsEqual(color1, color2) {
+            return color1.r === color2.r && color1.g === color2.g && color1.b === color2.b && color1.a === color2.a;
+        }
+
+        // HEX를 RGB로 변환
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16),
+                a: 255
+            } : null;
+        }
+
+        // 도형 그리기
+        function drawShape(startX, startY, endX, endY) {
+            ctx.fillStyle = currentColor;
+            
+            switch(currentTool) {
+                case 'line':
+                    drawLine(startX, startY, endX, endY);
+                    break;
+                case 'rectangle':
+                    drawRectangle(startX, startY, endX, endY);
+                    break;
+                case 'circle':
+                    drawCircle(startX, startY, endX, endY);
+                    break;
+            }
+        }
+
+        // 직선 그리기 (브레젠햄 알고리즘)
+        function drawLine(x0, y0, x1, y1) {
+            const dx = Math.abs(x1 - x0);
+            const dy = Math.abs(y1 - y0);
+            const sx = x0 < x1 ? 1 : -1;
+            const sy = y0 < y1 ? 1 : -1;
+            let err = dx - dy;
+
+            while (true) {
+                drawPixel(x0, y0);
+                
+                if (x0 === x1 && y0 === y1) break;
+                
+                const e2 = 2 * err;
+                if (e2 > -dy) {
+                    err -= dy;
+                    x0 += sx;
+                }
+                if (e2 < dx) {
+                    err += dx;
+                    y0 += sy;
+                }
+            }
+        }
+
+        // 사각형 그리기
+        function drawRectangle(startX, startY, endX, endY) {
+            const minX = Math.min(startX, endX);
+            const maxX = Math.max(startX, endX);
+            const minY = Math.min(startY, endY);
+            const maxY = Math.max(startY, endY);
+            
+            // 테두리만 그리기
+            for (let x = minX; x <= maxX; x++) {
+                drawPixel(x, minY);
+                drawPixel(x, maxY);
+            }
+            for (let y = minY; y <= maxY; y++) {
+                drawPixel(minX, y);
+                drawPixel(maxX, y);
+            }
+        }
+
+        // 원 그리기 (미드포인트 원 알고리즘)
+        function drawCircle(centerX, centerY, endX, endY) {
+            const radius = Math.round(Math.sqrt((endX - centerX) ** 2 + (endY - centerY) ** 2));
+            let x = radius;
+            let y = 0;
+            let err = 0;
+
+            while (x >= y) {
+                drawPixel(centerX + x, centerY + y);
+                drawPixel(centerX + y, centerY + x);
+                drawPixel(centerX - y, centerY + x);
+                drawPixel(centerX - x, centerY + y);
+                drawPixel(centerX - x, centerY - y);
+                drawPixel(centerX - y, centerY - x);
+                drawPixel(centerX + y, centerY - x);
+                drawPixel(centerX + x, centerY - y);
+
+                if (err <= 0) {
+                    y += 1;
+                    err += 2 * y + 1;
+                }
+                if (err > 0) {
+                    x -= 1;
+                    err -= 2 * x + 1;
+                }
+            }
+        }
+
+        // 격자 그리기
+        function drawGrid() {
+            const displayCanvas = canvas;
+            const displayRect = displayCanvas.getBoundingClientRect();
+            const scale = displayRect.width / canvas.width;
+            
+            if (scale < 4) return; // 너무 작으면 격자 표시 안 함
+            
+            // 격자는 CSS로 처리하는 것이 더 효율적
+        }
+
+        // 격자 토글
+        function toggleGrid() {
+            showGrid = !showGrid;
+            const toggle = document.getElementById('gridToggle');
+            toggle.classList.toggle('active');
+            
+            if (showGrid) {
+                canvas.style.backgroundImage = 'linear-gradient(rgba(0,0,0,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(0,0,0,0.1) 1px, transparent 1px)';
+                canvas.style.backgroundSize = `${zoom/100 * 4}px ${zoom/100 * 4}px`;
+            } else {
+                canvas.style.backgroundImage = 'none';
+            }
+        }
+
+        // 캔버스 크기 업데이트
+        function updateCanvasSize() {
+            const pixelSize = Math.max(1, Math.floor(zoom / 100 * 4));
+            canvas.style.width = (canvas.width * pixelSize) + 'px';
+            canvas.style.height = (canvas.height * pixelSize) + 'px';
+            
+            document.getElementById('canvasSizeInfo').textContent = `${canvas.width} × ${canvas.height}`;
+            document.getElementById('zoomLevel').textContent = `${zoom}%`;
+            
+            if (showGrid) {
+                canvas.style.backgroundSize = `${pixelSize}px ${pixelSize}px`;
+            }
+        }
+
+        // 줌 인
+        function zoomIn() {
+            if (zoom < 2000) {
+                zoom += 100;
+                updateCanvasSize();
+            }
+        }
+
+        // 줌 아웃
+        function zoomOut() {
+            if (zoom > 100) {
+                zoom -= 100;
+                updateCanvasSize();
+            }
+        }
+
+        // 줌 리셋
+        function resetZoom() {
+            zoom = 400;
+            updateCanvasSize();
+        }
+
+        // 캔버스 크기 변경
+        function resizeCanvas() {
+            const width = parseInt(document.getElementById('canvasWidth').value);
+            const height = parseInt(document.getElementById('canvasHeight').value);
+            
+            if (width < 8 || width > 512 || height < 8 || height > 512) {
+                alert('캔버스 크기는 8~512 픽셀 사이여야 합니다.');
+                return;
+            }
+
+            // 현재 캔버스 데이터 백업
+            const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            
+            // 캔버스 크기 변경
+            canvas.width = width;
+            canvas.height = height;
+            
+            // 가능한 경우 기존 데이터 복원
+            const minWidth = Math.min(width, imageData.width);
+            const minHeight = Math.min(height, imageData.height);
+            const newImageData = ctx.createImageData(minWidth, minHeight);
+            
+            for (let y = 0; y < minHeight; y++) {
+                for (let x = 0; x < minWidth; x++) {
+                    const oldIndex = (y * imageData.width + x) * 4;
+                    const newIndex = (y * minWidth + x) * 4;
+                    newImageData.data[newIndex] = imageData.data[oldIndex];
+                    newImageData.data[newIndex + 1] = imageData.data[oldIndex + 1];
+                    newImageData.data[newIndex + 2] = imageData.data[oldIndex + 2];
+                    newImageData.data[newIndex + 3] = imageData.data[oldIndex + 3];
+                }
+            }
+            
+            ctx.putImageData(newImageData, 0, 0);
+            updateCanvasSize();
+            saveState();
+            updateCurrentFrame();
+        }
+
+        // 전체 지우기
+        function clearCanvas() {
+            if (confirm('전체 캔버스를 지우시겠습니까?')) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                saveState();
+                updateCurrentFrame();
+            }
+        }
+
+        // 상태 저장 (실행취소/다시실행용)
+        function saveState() {
+            historyStep++;
+            if (historyStep < history.length) {
+                history.length = historyStep;
+            }
+            history.push(canvas.toDataURL());
+            if (history.length > 50) {
+                history.shift();
+                historyStep--;
+            }
+        }
+
+        // 실행취소
+        function undo() {
+            if (historyStep > 0) {
+                historyStep--;
+                restoreState();
+            }
+        }
+
+        // 다시실행
+        function redo() {
+            if (historyStep < history.length - 1) {
+                historyStep++;
+                restoreState();
+            }
+        }
+
+        // 상태 복원
+        function restoreState() {
+            const img = new Image();
+            img.onload = function() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+                updateCurrentFrame();
+            };
+            img.src = history[historyStep];
+        }
+
+        // 프레임 추가
+        function addFrame() {
+            frames.push({
+                data: canvas.toDataURL(),
+                thumbnail: createThumbnail()
+            });
+            currentFrame = frames.length - 1;
+            updateFrameList();
+            updateAnimationPreview();
+        }
+
+        // 프레임 복제
+        function duplicateFrame() {
+            if (frames.length === 0) {
+                addFrame();
+                return;
+            }
+            
+            frames.splice(currentFrame + 1, 0, {
+                data: frames[currentFrame].data,
+                thumbnail: frames[currentFrame].thumbnail
+            });
+            currentFrame++;
+            updateFrameList();
+        }
+
+        // 프레임 삭제
+        function deleteFrame() {
+            if (frames.length <= 1) {
+                alert('최소 하나의 프레임은 유지해야 합니다.');
+                return;
+            }
+            
+            frames.splice(currentFrame, 1);
+            if (currentFrame >= frames.length) {
+                currentFrame = frames.length - 1;
+            }
+            loadFrame(currentFrame);
+            updateFrameList();
+        }
+
+        // 썸네일 생성
+        function createThumbnail() {
+            const thumbnailCanvas = document.createElement('canvas');
+            thumbnailCanvas.width = 40;
+            thumbnailCanvas.height = 40;
+            const thumbnailCtx = thumbnailCanvas.getContext('2d');
+            thumbnailCtx.imageSmoothingEnabled = false;
+            thumbnailCtx.drawImage(canvas, 0, 0, 40, 40);
+            return thumbnailCanvas.toDataURL();
+        }
+
+        // 프레임 목록 업데이트
+        function updateFrameList() {
+            const frameList = document.getElementById('frameList');
+            frameList.innerHTML = '';
+            
+            frames.forEach((frame, index) => {
+                const frameItem = document.createElement('div');
+                frameItem.className = `frame-item ${index === currentFrame ? 'active' : ''}`;
+                frameItem.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <img src="${frame.thumbnail}" class="frame-preview" alt="Frame ${index + 1}">
+                        <span>프레임 ${index + 1}</span>
+                    </div>
+                    <button onclick="deleteFrameAt(${index})" style="background: #ff6b6b; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer;">×</button>
+                `;
+                frameItem.onclick = (e) => {
+                    if (e.target.tagName !== 'BUTTON') {
+                        selectFrame(index);
+                    }
+                };
+                frameList.appendChild(frameItem);
+            });
+        }
+
+        // 특정 인덱스의 프레임 삭제
+        function deleteFrameAt(index) {
+            if (frames.length <= 1) {
+                alert('최소 하나의 프레임은 유지해야 합니다.');
+                return;
+            }
+            
+            frames.splice(index, 1);
+            if (currentFrame >= index && currentFrame > 0) {
+                currentFrame--;
+            }
+            if (currentFrame >= frames.length) {
+                currentFrame = frames.length - 1;
+            }
+            loadFrame(currentFrame);
+            updateFrameList();
+        }
+
+        // 프레임 선택
+        function selectFrame(index) {
+            updateCurrentFrame(); // 현재 프레임 저장
+            currentFrame = index;
+            loadFrame(index);
+            updateFrameList();
+        }
+
+        // 프레임 로드
+        function loadFrame(index) {
+            if (index < 0 || index >= frames.length) return;
+            
+            const img = new Image();
+            img.onload = function() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(img, 0, 0);
+            };
+            img.src = frames[index].data;
+        }
+
+        // 현재 프레임 업데이트
+        function updateCurrentFrame() {
+            if (frames.length > 0 && currentFrame < frames.length) {
+                frames[currentFrame] = {
+                    data: canvas.toDataURL(),
+                    thumbnail: createThumbnail()
+                };
+                updateFrameList();
+                updateAnimationPreview();
+            }
+        }
+
+        // 애니메이션 미리보기 업데이트
+        function updateAnimationPreview() {
+            if (frames.length === 0) return;
+            
+            const img = new Image();
+            img.onload = function() {
+                animationCtx.clearRect(0, 0, 80, 80);
+                animationCtx.drawImage(img, 0, 0, 80, 80);
+            };
+            img.src = frames[currentFrame]?.data || canvas.toDataURL();
+        }
+
+        // 애니메이션 재생/정지 토글
+        function toggleAnimation() {
+            if (animationPlaying) {
+                stopAnimation();
+            } else {
+                playAnimation();
+            }
+        }
+
+        // 애니메이션 재생
+        function playAnimation() {
+            if (frames.length <= 1) {
+                alert('애니메이션을 재생하려면 최소 2개의 프레임이 필요합니다.');
+                return;
+            }
+            
+            animationPlaying = true;
+            document.getElementById('playBtn').innerHTML = '⏸️ 일시정지';
+            
+            let frameIndex = 0;
+            const frameDelay = parseInt(document.getElementById('frameDelay').value);
+            
+            animationInterval = setInterval(() => {
+                const img = new Image();
+                img.onload = function() {
+                    animationCtx.clearRect(0, 0, 80, 80);
+                    animationCtx.drawImage(img, 0, 0, 80, 80);
+                };
+                img.src = frames[frameIndex].data;
+                
+                frameIndex = (frameIndex + 1) % frames.length;
+            }, frameDelay);
+        }
+
+        // 애니메이션 정지
+        function stopAnimation() {
+            animationPlaying = false;
+            document.getElementById('playBtn').innerHTML = '▶️ 재생';
+            
+            if (animationInterval) {
+                clearInterval(animationInterval);
+                animationInterval = null;
+            }
+            
+            updateAnimationPreview();
+        }
+
+        // 이미지 불러오기
+        function loadImage() {
+            const file = document.getElementById('fileInput').files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    ctx.clearRect(0, 0, canvas.width, canvas.height);
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    saveState();
+                    updateCurrentFrame();
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        // JPG로 다운로드
+        function downloadJPG() {
+            // 애니메이션이 있는 경우 현재 프레임만 다운로드
+            const link = document.createElement('a');
+            
+            // JPG 변환을 위해 흰색 배경 추가
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = canvas.width;
+            tempCanvas.height = canvas.height;
+            const tempCtx = tempCanvas.getContext('2d');
+            
+            // 흰색 배경
+            tempCtx.fillStyle = '#FFFFFF';
+            tempCtx.fillRect(0, 0, tempCanvas.width, tempCanvas.height);
+            
+            // 현재 캔버스 내용 복사
+            tempCtx.drawImage(canvas, 0, 0);
+            
+            link.download = `pixel_art_${Date.now()}.jpg`;
+            link.href = tempCanvas.toDataURL('image/jpeg', 0.9);
+            link.click();
+        }
+
+        // PNG로 다운로드
+        function downloadPNG() {
+            const link = document.createElement('a');
+            link.download = `pixel_art_${Date.now()}.png`;
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        }
+
+        // GIF로 다운로드 (애니메이션)
+        function downloadGIF() {
+            if (frames.length <= 1) {
+                alert('GIF 애니메이션을 만들려면 최소 2개의 프레임이 필요합니다.');
+                return;
+            }
+            
+            alert('GIF 생성 기능은 브라우저 한계로 인해 현재 지원되지 않습니다. 대신 각 프레임을 PNG로 다운로드하여 외부 도구에서 GIF로 변환해주세요.');
+        }
+
+        // 키보드 단축키
+        function handleKeyPress(e) {
+            if (e.ctrlKey || e.metaKey) {
+                switch(e.key) {
+                    case 'z':
+                        e.preventDefault();
+                        if (e.shiftKey) {
+                            redo();
+                        } else {
+                            undo();
+                        }
+                        break;
+                    case 'y':
+                        e.preventDefault();
+                        redo();
+                        break;
+                    case 's':
+                        e.preventDefault();
+                        downloadPNG();
+                        break;
+                }
+            }
+            
+            // 도구 단축키
+            switch(e.key) {
+                case 'p': selectTool('pencil'); break;
+                case 'b': selectTool('brush'); break;
+                case 'e': selectTool('eraser'); break;
+                case 'f': selectTool('bucket'); break;
+                case 'i': selectTool('eyedropper'); break;
+                case 'l': selectTool('line'); break;
+                case 'r': selectTool('rectangle'); break;
+                case 'c': selectTool('circle'); break;
+                case 's': selectTool('select'); break;
+            }
+        }
+    </script>
+</body>
+</html>
